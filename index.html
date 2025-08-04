@@ -1,120 +1,29 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Excel Upload and Search</title>
-  <style>
-    body {
-      font-family: Arial;
-      margin: 20px;
-      background-color: white;
-      color: #333;
-    }
-    input[type="file"], input[type="text"] {
-      margin-bottom: 10px;
-      padding: 8px;
-      background-color: #f5f5f5;
-      border: 1px solid #ccc;
-    }
-    table {
-      border-collapse: collapse;
-      width: 100%;
-      margin-top: 20px;
-      background-color: #f9f9f9;
-    }
-    th, td {
-      border: 1px solid #ccc;
-      padding: 8px;
-      text-align: left;
-    }
-    th {
-      background-color: #e0e0e0;
-    }
-    #search {
-      width: 300px;
-    }
-  </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Excel Upload to DB</title>
 </head>
 <body>
-  <h2>Upload Excel and Search by File No</h2>
+  <h2>Upload Excel File</h2>
+  <form id="uploadForm" enctype="multipart/form-data">
+    <input type="file" name="excelFile" accept=".xlsx" required />
+    <button type="submit">Upload</button>
+  </form>
+  <div id="response"></div>
 
-  <input type="file" id="fileInput" accept=".xlsx" />
-  <input type="text" id="search" placeholder="Enter File No to Search" />
-  <div id="table-container"></div>
-
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script>
-    let originalData = [];
-
-    document.getElementById('fileInput').addEventListener('change', function (e) {
-      const file = e.target.files[0];
-      if (!file) return;
-
-      const reader = new FileReader();
-      reader.onload = function (e) {
-        const data = new Uint8Array(e.target.result);
-        const workbook = XLSX.read(data, { type: 'array' });
-        const sheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[sheetName];
-        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-        originalData = jsonData;
-        displayTable(originalData); // Show full table initially
-      };
-      reader.readAsArrayBuffer(file);
-    });
-
-    document.getElementById('search').addEventListener('input', function () {
-      const query = this.value.trim().toLowerCase();
-      const header = originalData[0];
-      const body = originalData.slice(1);
-
-      if (!query) {
-        displayTable(originalData);
-        return;
-      }
-
-      const filtered = body.filter(row => {
-        const cell = row[0];
-        if (cell === undefined || cell === null) return false;
-        return String(cell).trim().toLowerCase().includes(query);
+    document.getElementById('uploadForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const formData = new FormData(this);
+      const response = await fetch('/upload', {
+        method: 'POST',
+        body: formData
       });
-
-      const displayData = [header, ...filtered];
-      displayTable(displayData);
+      const result = await response.text();
+      document.getElementById('response').innerText = result;
     });
-
-    function displayTable(data) {
-      const container = document.getElementById('table-container');
-      container.innerHTML = '';
-      if (data.length === 0) return;
-
-      const table = document.createElement('table');
-      const thead = document.createElement('thead');
-      const tbody = document.createElement('tbody');
-
-      const headerRow = document.createElement('tr');
-      data[0].forEach(cell => {
-        const th = document.createElement('th');
-        th.textContent = cell;
-        headerRow.appendChild(th);
-      });
-      thead.appendChild(headerRow);
-
-      for (let i = 1; i < data.length; i++) {
-        const row = document.createElement('tr');
-        data[i].forEach(cell => {
-          const td = document.createElement('td');
-          td.textContent = cell;
-          row.appendChild(td);
-        });
-        tbody.appendChild(row);
-      }
-
-      table.appendChild(thead);
-      table.appendChild(tbody);
-      container.appendChild(table);
-    }
   </script>
 </body>
 </html>
