@@ -2,101 +2,180 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>PDF Tool - Merge, Split & Rename</title>
+  <title>iLovePDF Clone - PDF Tools</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.0/jszip.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <style>
-    body { font-family: Arial; margin: 20px; }
-    .tab { display: none; }
-    .tab.active { display: block; }
-    .tab-buttons button { margin-right: 10px; padding: 10px 20px; }
-    #fileList { margin-top: 10px; }
-    #fileList li { margin-bottom: 5px; }
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #f1f1f1;
+      margin: 0;
+      padding: 0;
+    }
+    header {
+      background: #e91e63;
+      color: white;
+      text-align: center;
+      padding: 30px 0;
+      font-size: 28px;
+      font-weight: bold;
+    }
+    nav {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      margin-top: 20px;
+    }
+    nav button {
+      padding: 12px 25px;
+      border: none;
+      background: #e91e63;
+      color: white;
+      border-radius: 25px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    nav button.active {
+      background: #ad1457;
+    }
+    main {
+      max-width: 800px;
+      margin: 40px auto;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      padding: 30px;
+    }
+    section { display: none; }
+    section.active { display: block; }
+    h2 {
+      color: #e91e63;
+      margin-top: 0;
+    }
+    .dropzone {
+      border: 2px dashed #e91e63;
+      border-radius: 10px;
+      padding: 30px;
+      text-align: center;
+      color: #888;
+      margin: 20px 0;
+      cursor: pointer;
+    }
+    ul { padding-left: 20px; }
+    li { margin: 5px 0; }
+    .status {
+      margin-top: 10px;
+      color: green;
+    }
+    .file-preview {
+      margin-top: 10px;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      background: #f9f9f9;
+    }
+    .file-preview span {
+      display: inline-block;
+      margin-right: 10px;
+    }
+    .file-preview button {
+      background: #e53935;
+      color: white;
+      border: none;
+      border-radius: 3px;
+      padding: 3px 6px;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
-  <h1>📄 PDF Tool (Merge / Split / Rename)</h1>
-  <div class="tab-buttons">
-    <button onclick="switchTab('mergeTab')">📎 Merge</button>
-    <button onclick="switchTab('splitTab')">✂️ Split</button>
-    <button onclick="switchTab('renameTab')">📝 Rename</button>
-  </div>
+  <header>
+    BOA - PDF Tools
+  </header>
+  <nav>
+    <button onclick="showSection('merge')" class="active">Merge</button>
+    <button onclick="showSection('split')">Split</button>
+    <button onclick="showSection('rename')">Rename</button>
+  </nav>
+  <main>
+    <section id="merge" class="active">
+      <h2>Merge PDF</h2>
+      <div class="dropzone" id="mergeDropzone" onclick="triggerMergeInput()">Click or Drop PDFs to Merge</div>
+      <input type="file" id="mergeFileInput" accept="application/pdf" multiple style="display:none" />
+      <div class="file-preview" id="mergePreview"></div>
+      <button onclick="mergePDFs()">Merge PDFs</button>
+      <p class="status" id="mergeStatus"></p>
+    </section>
 
-  <!-- Merge Tab -->
-  <div id="mergeTab" class="tab active">
-    <h2>📎 Merge PDFs</h2>
-    <input type="file" id="mergeFileInput" accept="application/pdf" style="display: none;" />
-    <button onclick="addMergeFile()">Add PDF</button>
-    <button onclick="mergePDFs()">Merge</button>
-    <ul id="fileList"></ul>
-    <p id="mergeStatus"></p>
-  </div>
+    <section id="split">
+      <h2>Split PDF</h2>
+      <div class="dropzone" id="splitDropzone" onclick="document.getElementById('splitInput').click()">Click or Drop PDF to Split</div>
+      <input type="file" id="splitInput" accept="application/pdf" style="display:none" />
+      <div class="file-preview" id="splitPreview"></div>
+      <button onclick="splitPDF()">Split PDF</button>
+      <p class="status" id="splitStatus"></p>
+    </section>
 
-  <!-- Split Tab -->
-  <div id="splitTab" class="tab">
-    <h2>✂️ Split PDF</h2>
-    <input type="file" id="splitInput" accept="application/pdf" />
-    <button onclick="splitPDF()">Split</button>
-    <p id="splitStatus"></p>
-  </div>
-
-  <!-- Rename Tab -->
-  <div id="renameTab" class="tab">
-    <h2>📝 Rename PDFs</h2>
-    <p>1. Upload Excel file with column A = number, B = suffix</p>
-    <input type="file" id="excelInput" accept=".xlsx,.xls" /><br><br>
-    <p>2. Upload PDF folder (as .zip)</p>
-    <input type="file" id="pdfFolderZip" accept="application/zip" /><br><br>
-    <button onclick="renameFromExcel()">Rename & Download</button>
-    <p id="renameStatus"></p>
-  </div>
-
+    <section id="rename">
+      <h2>Rename PDFs</h2>
+      <p>Upload Excel (1st column: number, 2nd: label)</p>
+      <input type="file" id="excelInput" accept=".xlsx,.xls" /><br><br>
+      <p>Upload zipped folder of PDFs</p>
+      <input type="file" id="pdfFolderZip" accept="application/zip" multiple /><br><br>
+      <button onclick="renameFromExcel()">Rename PDFs</button>
+      <p class="status" id="renameStatus"></p>
+    </section>
+  </main>
   <script>
-    function switchTab(tabId) {
-      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-      document.getElementById(tabId).classList.add('active');
+    const sections = document.querySelectorAll('section');
+    const buttons = document.querySelectorAll('nav button');
+
+    function showSection(id) {
+      sections.forEach(s => s.classList.remove('active'));
+      document.getElementById(id).classList.add('active');
+      buttons.forEach(b => b.classList.remove('active'));
+      document.querySelector(`nav button[onclick*="${id}"]`).classList.add('active');
     }
 
     let mergeFiles = [];
 
-    function addMergeFile() {
-      const input = document.getElementById('mergeFileInput');
-      input.value = '';
-      input.click();
-      input.onchange = () => {
-        if (input.files.length > 0) {
-          mergeFiles.push(input.files[0]);
-          updateFileList();
-        }
-      };
+    function triggerMergeInput() {
+      document.getElementById('mergeFileInput').click();
     }
 
-    function updateFileList() {
-      const list = document.getElementById('fileList');
-      list.innerHTML = '';
-      mergeFiles.forEach((file, i) => {
-        const li = document.createElement('li');
-        li.textContent = `${i + 1}. ${file.name}`;
-        list.appendChild(li);
+    document.getElementById('mergeFileInput').addEventListener('change', (e) => {
+      mergeFiles = [...mergeFiles, ...Array.from(e.target.files)];
+      renderMergePreview();
+    });
+
+    function renderMergePreview() {
+      const container = document.getElementById('mergePreview');
+      container.innerHTML = '';
+      mergeFiles.forEach((file, index) => {
+        const div = document.createElement('div');
+        div.innerHTML = `<span>${index + 1}. ${file.name}</span><button onclick="removeMergeFile(${index})">Remove</button>`;
+        container.appendChild(div);
       });
+    }
+
+    function removeMergeFile(index) {
+      mergeFiles.splice(index, 1);
+      renderMergePreview();
     }
 
     async function mergePDFs() {
       const status = document.getElementById('mergeStatus');
       status.textContent = '';
-
       if (mergeFiles.length < 2) return alert("Add at least 2 PDFs");
 
       const merged = await PDFLib.PDFDocument.create();
-
       for (let file of mergeFiles) {
         const bytes = await file.arrayBuffer();
         const pdf = await PDFLib.PDFDocument.load(bytes);
         const pages = await merged.copyPages(pdf, pdf.getPageIndices());
         pages.forEach(p => merged.addPage(p));
       }
-
       const finalBytes = await merged.save();
       const blob = new Blob([finalBytes], { type: 'application/pdf' });
       const link = document.createElement('a');
@@ -105,19 +184,72 @@
       link.click();
       status.textContent = `✅ Merged ${mergeFiles.length} PDFs.`;
       mergeFiles = [];
-      updateFileList();
+      renderMergePreview();
+    }
+
+    const mergeDropzone = document.getElementById('mergeDropzone');
+    mergeDropzone.addEventListener('dragover', function (e) {
+      e.preventDefault();
+      mergeDropzone.style.background = '#ffe6f0';
+    });
+    mergeDropzone.addEventListener('dragleave', function () {
+      mergeDropzone.style.background = '';
+    });
+    mergeDropzone.addEventListener('drop', function (e) {
+      e.preventDefault();
+      mergeDropzone.style.background = '';
+      const files = Array.from(e.dataTransfer.files).filter(f => f.type === 'application/pdf');
+      mergeFiles = [...mergeFiles, ...files];
+      renderMergePreview();
+    });
+
+    let splitFile = null;
+    document.getElementById('splitInput').addEventListener('change', (e) => {
+      splitFile = e.target.files[0];
+      renderSplitPreview();
+    });
+
+    const splitDropzone = document.getElementById('splitDropzone');
+    splitDropzone.addEventListener('dragover', function (e) {
+      e.preventDefault();
+      splitDropzone.style.background = '#ffe6f0';
+    });
+    splitDropzone.addEventListener('dragleave', function () {
+      splitDropzone.style.background = '';
+    });
+    splitDropzone.addEventListener('drop', function (e) {
+      e.preventDefault();
+      splitDropzone.style.background = '';
+      const files = Array.from(e.dataTransfer.files).filter(f => f.type === 'application/pdf');
+      if (files.length > 0) {
+        splitFile = files[0];
+        renderSplitPreview();
+      }
+    });
+
+    function renderSplitPreview() {
+      const container = document.getElementById('splitPreview');
+      container.innerHTML = '';
+      if (splitFile) {
+        const div = document.createElement('div');
+        div.innerHTML = `<span>${splitFile.name}</span><button onclick="removeSplitFile()">Remove</button>`;
+        container.appendChild(div);
+      }
+    }
+
+    function removeSplitFile() {
+      splitFile = null;
+      document.getElementById('splitInput').value = '';
+      renderSplitPreview();
     }
 
     async function splitPDF() {
-      const input = document.getElementById('splitInput');
       const status = document.getElementById('splitStatus');
       status.textContent = '';
-
-      const file = input.files[0];
-      if (!file) return alert("Please select a PDF");
+      if (!splitFile) return alert("Please select a PDF");
 
       const zip = new JSZip();
-      const bytes = await file.arrayBuffer();
+      const bytes = await splitFile.arrayBuffer();
       const pdf = await PDFLib.PDFDocument.load(bytes);
 
       for (let i = 0; i < pdf.getPageCount(); i++) {
@@ -134,6 +266,7 @@
       link.download = 'SplitPages.zip';
       link.click();
       status.textContent = `✅ Split into ${pdf.getPageCount()} pages.`;
+      removeSplitFile();
     }
 
     async function renameFromExcel() {
@@ -176,7 +309,6 @@
           const workbook = XLSX.read(data, { type: 'array' });
           const sheet = workbook.Sheets[workbook.SheetNames[0]];
           const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
-
           const list = [];
           for (let i = 1; i < rows.length; i++) {
             const num = rows[i][0];
