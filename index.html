@@ -2,83 +2,174 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Rename PDFs from Excel</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <title>PDF Tool - Merge, Split & Rename</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.0/jszip.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <style>
+    body { font-family: Arial; margin: 20px; }
+    .tab { display: none; }
+    .tab.active { display: block; }
+    .tab-buttons button { margin-right: 10px; padding: 10px 20px; }
+    #fileList { margin-top: 10px; }
+    #fileList li { margin-bottom: 5px; }
+  </style>
 </head>
 <body>
-  <h2>Rename PDFs Sequentially Based on Excel</h2>
+  <h1>📄 PDF Tool (Merge / Split / Rename)</h1>
+  <div class="tab-buttons">
+    <button onclick="switchTab('mergeTab')">📎 Merge</button>
+    <button onclick="switchTab('splitTab')">✂️ Split</button>
+    <button onclick="switchTab('renameTab')">📝 Rename</button>
+  </div>
 
-  <p><strong>Step 1:</strong> Upload Excel File (Column A = number, Column B = suffix)</p>
-  <input type="file" id="excelFile" accept=".xlsx, .xls" />
+  <!-- Merge Tab -->
+  <div id="mergeTab" class="tab active">
+    <h2>📎 Merge PDFs</h2>
+    <input type="file" id="mergeFileInput" accept="application/pdf" style="display: none;" />
+    <button onclick="addMergeFile()">Add PDF</button>
+    <button onclick="mergePDFs()">Merge</button>
+    <ul id="fileList"></ul>
+    <p id="mergeStatus"></p>
+  </div>
 
-  <p><strong>Step 2:</strong> Either:</p>
-  <ul>
-    <li>Select a folder with PDFs: <input type="file" id="pdfFolder" webkitdirectory directory multiple /></li>
-    <li><strong>OR</strong> upload a ZIP containing PDFs: <input type="file" id="pdfZip" accept=".zip" /></li>
-  </ul>
+  <!-- Split Tab -->
+  <div id="splitTab" class="tab">
+    <h2>✂️ Split PDF</h2>
+    <input type="file" id="splitInput" accept="application/pdf" />
+    <button onclick="splitPDF()">Split</button>
+    <p id="splitStatus"></p>
+  </div>
 
-  <button onclick="processFiles()">Rename & Download</button>
-
-  <p id="status" style="margin-top: 20px; color: green;"></p>
+  <!-- Rename Tab -->
+  <div id="renameTab" class="tab">
+    <h2>📝 Rename PDFs</h2>
+    <p>1. Upload Excel file with column A = number, B = suffix</p>
+    <input type="file" id="excelInput" accept=".xlsx,.xls" /><br><br>
+    <p>2. Upload PDF folder (as .zip)</p>
+    <input type="file" id="pdfFolderZip" accept="application/zip" /><br><br>
+    <button onclick="renameFromExcel()">Rename & Download</button>
+    <p id="renameStatus"></p>
+  </div>
 
   <script>
-    async function processFiles() {
-      const excelFile = document.getElementById('excelFile').files[0];
-      const folderFiles = Array.from(document.getElementById('pdfFolder').files)
-        .filter(f => f.name.toLowerCase().endsWith('.pdf'))
-        .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
-      const zipFile = document.getElementById('pdfZip').files[0];
-
-      const status = document.getElementById('status');
-      status.textContent = "";
-
-      if (!excelFile) {
-        alert("Please upload an Excel file.");
-        return;
-      }
-
-      const renameList = await readExcelRenameList(excelFile);
-      if (renameList.length === 0) {
-        status.textContent = "❌ Excel has no valid rename entries.";
-        return;
-      }
-
-      let pdfFiles = [];
-
-      if (folderFiles.length > 0) {
-        pdfFiles = folderFiles;
-      } else if (zipFile) {
-        status.textContent = "Unzipping files...";
-        pdfFiles = await extractPDFsFromZip(zipFile);
-      } else {
-        alert("Please select a PDF folder or upload a ZIP file.");
-        return;
-      }
-
-      if (renameList.length < pdfFiles.length) {
-        status.textContent = `❌ Error: Excel has ${renameList.length} entries but ${pdfFiles.length} PDFs were uploaded.`;
-        return;
-      }
-
-      const outputZip = new JSZip();
-      for (let i = 0; i < pdfFiles.length; i++) {
-        const newName = renameList[i];
-        const content = await pdfFiles[i].arrayBuffer();
-        outputZip.file(newName, content);
-      }
-
-      const blob = await outputZip.generateAsync({ type: 'blob' });
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
-      link.download = 'RenamedPDFs.zip';
-      link.click();
-
-      status.textContent = `✅ Renamed ${pdfFiles.length} PDF(s). ZIP downloaded.`;
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.getElementById(tabId).classList.add('active');
     }
 
-    async function readExcelRenameList(file) {
-      return new Promise((resolve) => {
+    let mergeFiles = [];
+
+    function addMergeFile() {
+      const input = document.getElementById('mergeFileInput');
+      input.value = '';
+      input.click();
+      input.onchange = () => {
+        if (input.files.length > 0) {
+          mergeFiles.push(input.files[0]);
+          updateFileList();
+        }
+      };
+    }
+
+    function updateFileList() {
+      const list = document.getElementById('fileList');
+      list.innerHTML = '';
+      mergeFiles.forEach((file, i) => {
+        const li = document.createElement('li');
+        li.textContent = `${i + 1}. ${file.name}`;
+        list.appendChild(li);
+      });
+    }
+
+    async function mergePDFs() {
+      const status = document.getElementById('mergeStatus');
+      status.textContent = '';
+
+      if (mergeFiles.length < 2) return alert("Add at least 2 PDFs");
+
+      const merged = await PDFLib.PDFDocument.create();
+
+      for (let file of mergeFiles) {
+        const bytes = await file.arrayBuffer();
+        const pdf = await PDFLib.PDFDocument.load(bytes);
+        const pages = await merged.copyPages(pdf, pdf.getPageIndices());
+        pages.forEach(p => merged.addPage(p));
+      }
+
+      const finalBytes = await merged.save();
+      const blob = new Blob([finalBytes], { type: 'application/pdf' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = 'Merged.pdf';
+      link.click();
+      status.textContent = `✅ Merged ${mergeFiles.length} PDFs.`;
+      mergeFiles = [];
+      updateFileList();
+    }
+
+    async function splitPDF() {
+      const input = document.getElementById('splitInput');
+      const status = document.getElementById('splitStatus');
+      status.textContent = '';
+
+      const file = input.files[0];
+      if (!file) return alert("Please select a PDF");
+
+      const zip = new JSZip();
+      const bytes = await file.arrayBuffer();
+      const pdf = await PDFLib.PDFDocument.load(bytes);
+
+      for (let i = 0; i < pdf.getPageCount(); i++) {
+        const newPdf = await PDFLib.PDFDocument.create();
+        const [page] = await newPdf.copyPages(pdf, [i]);
+        newPdf.addPage(page);
+        const pageBytes = await newPdf.save();
+        zip.file(`Page-${i + 1}.pdf`, pageBytes);
+      }
+
+      const zipBlob = await zip.generateAsync({ type: 'blob' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(zipBlob);
+      link.download = 'SplitPages.zip';
+      link.click();
+      status.textContent = `✅ Split into ${pdf.getPageCount()} pages.`;
+    }
+
+    async function renameFromExcel() {
+      const excelFile = document.getElementById('excelInput').files[0];
+      const zipFile = document.getElementById('pdfFolderZip').files[0];
+      const status = document.getElementById('renameStatus');
+      status.textContent = '';
+
+      if (!excelFile || !zipFile) return alert("Upload Excel and PDF zip");
+
+      const renameList = await readExcel(excelFile);
+
+      const zipData = await JSZip.loadAsync(zipFile);
+      const pdfFiles = Object.keys(zipData.files).filter(name => name.endsWith('.pdf'));
+
+      if (pdfFiles.length !== renameList.length) {
+        status.textContent = `❌ Mismatch: ${pdfFiles.length} PDFs vs ${renameList.length} Excel rows.`;
+        return;
+      }
+
+      const outZip = new JSZip();
+      for (let i = 0; i < pdfFiles.length; i++) {
+        const blob = await zipData.files[pdfFiles[i]].async("uint8array");
+        outZip.file(renameList[i], blob);
+      }
+
+      const finalZip = await outZip.generateAsync({ type: 'blob' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(finalZip);
+      link.download = 'RenamedPDFs.zip';
+      link.click();
+      status.textContent = `✅ Renamed and zipped ${renameList.length} PDFs.`;
+    }
+
+    async function readExcel(file) {
+      return new Promise(resolve => {
         const reader = new FileReader();
         reader.onload = function (e) {
           const data = new Uint8Array(e.target.result);
@@ -100,21 +191,6 @@
         };
         reader.readAsArrayBuffer(file);
       });
-    }
-
-    async function extractPDFsFromZip(zipFile) {
-      const pdfList = [];
-      const zip = await JSZip.loadAsync(zipFile);
-      const pdfEntries = Object.values(zip.files)
-        .filter(f => f.name.toLowerCase().endsWith('.pdf') && !f.dir)
-        .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
-
-      for (let entry of pdfEntries) {
-        const blob = await entry.async('blob');
-        const fakeFile = new File([blob], entry.name, { type: 'application/pdf' });
-        pdfList.push(fakeFile);
-      }
-      return pdfList;
     }
   </script>
 </body>
