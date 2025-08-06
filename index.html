@@ -1,83 +1,59 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
   <meta charset="UTF-8">
-  <title>Inquiry System</title>
-  <style>
-    body {
-      font-family: Arial;
-      background-color: white;
-      color: #333;
-      margin: 20px;
-    }
-
-    input[type="text"] {
-      padding: 8px;
-      width: 300px;
-      background-color: #f5f5f5;
-      border: 1px solid #ccc;
-      margin-bottom: 15px;
-    }
-
-    table {
-      border-collapse: collapse;
-      width: 100%;
-      background-color: #f9f9f9;
-      margin-top: 20px;
-    }
-
-    th, td {
-      border: 1px solid #ccc;
-      padding: 8px;
-    }
-
-    th {
-      background-color: #e0e0e0;
-    }
-  </style>
+  <title>Rename Generator from Excel</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
-  <h2>Search File No</h2>
-  <input type="text" id="searchInput" placeholder="Enter File No..." />
-  <div id="table-container"></div>
+  <h2>Upload Excel File to Generate Rename Script</h2>
+  <input type="file" id="upload" accept=".xlsx, .xls" />
+  <button onclick="generate()">Generate Rename Script</button>
+  <pre id="output" style="white-space: pre-wrap; background: #f0f0f0; padding: 10px;"></pre>
+  <a id="downloadLink" style="display: none;">Download Rename Script</a>
 
   <script>
-    document.getElementById('searchInput').addEventListener('input', function () {
-      const query = this.value.trim();
-      if (query === '') {
-        document.getElementById('table-container').innerHTML = '';
+    let renameCommands = '';
+
+    function generate() {
+      const fileInput = document.getElementById('upload');
+      const file = fileInput.files[0];
+      if (!file) {
+        alert("Please upload an Excel file.");
         return;
       }
 
-      fetch(`/search?file_no=${encodeURIComponent(query)}`)
-        .then(res => res.json())
-        .then(data => {
-          if (data.length === 0) {
-            document.getElementById('table-container').innerHTML = 'No results found.';
-            return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+
+        renameCommands = '';
+        for (let i = 1; i < rows.length; i++) {
+          const fileNum = rows[i][0];
+          const suffix = rows[i][1];
+          if (fileNum && suffix) {
+            const oldName = fileNum.toString().trim();
+            const newName = `${oldName}-${suffix.toString().trim()}.pdf`;
+            renameCommands += `rename "${oldName}" "${newName}"\n`;
           }
+        }
 
-          let html = '<table><thead><tr>';
-          Object.keys(data[0]).forEach(col => {
-            html += `<th>${col}</th>`;
-          });
-          html += '</tr></thead><tbody>';
+        document.getElementById('output').textContent = renameCommands;
 
-          data.forEach(row => {
-            html += '<tr>';
-            Object.values(row).forEach(cell => {
-              html += `<td>${cell}</td>`;
-            });
-            html += '</tr>';
-          });
-
-          html += '</tbody></table>';
-          document.getElementById('table-container').innerHTML = html;
-        })
-        .catch(() => {
-          document.getElementById('table-container').innerHTML = 'Error fetching data.';
-        });
-    });
+        // Create downloadable .bat file
+        const blob = new Blob([renameCommands], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const link = document.getElementById('downloadLink');
+        link.href = url;
+        link.download = 'rename_script.bat';
+        link.style.display = 'inline-block';
+        link.textContent = 'Download Rename Script (.bat)';
+      };
+      reader.readAsArrayBuffer(file);
+    }
   </script>
 </body>
 </html>
