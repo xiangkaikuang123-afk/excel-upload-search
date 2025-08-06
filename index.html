@@ -2,57 +2,81 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Rename Generator from Excel</title>
+  <title>Rename PDFs by Excel</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.0/jszip.min.js"></script>
 </head>
 <body>
-  <h2>Upload Excel File to Generate Rename Script</h2>
-  <input type="file" id="upload" accept=".xlsx, .xls" />
-  <button onclick="generate()">Generate Rename Script</button>
-  <pre id="output" style="white-space: pre-wrap; background: #f0f0f0; padding: 10px;"></pre>
-  <a id="downloadLink" style="display: none;">Download Rename Script</a>
+  <h2>Upload Excel + PDF Files to Rename</h2>
+
+  <p><strong>Step 1:</strong> Upload Excel File (first column = ID, second column = suffix)</p>
+  <input type="file" id="excelFile" accept=".xlsx, .xls" />
+
+  <p><strong>Step 2:</strong> Upload PDF files</p>
+  <input type="file" id="pdfFiles" accept=".pdf" multiple />
+
+  <br><br>
+  <button onclick="processFiles()">Rename & Download</button>
+
+  <p id="status" style="margin-top: 20px; color: green;"></p>
 
   <script>
-    let renameCommands = '';
+    async function processFiles() {
+      const excelInput = document.getElementById('excelFile').files[0];
+      const pdfInput = document.getElementById('pdfFiles').files;
 
-    function generate() {
-      const fileInput = document.getElementById('upload');
-      const file = fileInput.files[0];
-      if (!file) {
-        alert("Please upload an Excel file.");
+      if (!excelInput || pdfInput.length === 0) {
+        alert("Please upload both Excel file and at least one PDF.");
         return;
       }
 
+      const status = document.getElementById('status');
+      status.textContent = "Processing...";
+
       const reader = new FileReader();
-      reader.onload = function(e) {
+      reader.onload = async function(e) {
         const data = new Uint8Array(e.target.result);
         const workbook = XLSX.read(data, { type: 'array' });
-        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-        const rows = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
 
-        renameCommands = '';
+        const nameMap = new Map();
         for (let i = 1; i < rows.length; i++) {
-          const fileNum = rows[i][0];
+          const id = rows[i][0];
           const suffix = rows[i][1];
-          if (fileNum && suffix) {
-            const oldName = fileNum.toString().trim();
-            const newName = `${oldName}-${suffix.toString().trim()}.pdf`;
-            renameCommands += `rename "${oldName}" "${newName}"\n`;
+          if (id && suffix) {
+            nameMap.set(id.toString().trim(), suffix.toString().trim());
           }
         }
 
-        document.getElementById('output').textContent = renameCommands;
+        const zip = new JSZip();
+        let renamedCount = 0;
 
-        // Create downloadable .bat file
-        const blob = new Blob([renameCommands], { type: 'text/plain' });
-        const url = URL.createObjectURL(blob);
-        const link = document.getElementById('downloadLink');
-        link.href = url;
-        link.download = 'rename_script.bat';
-        link.style.display = 'inline-block';
-        link.textContent = 'Download Rename Script (.bat)';
+        for (let file of pdfInput) {
+          const baseName = file.name.replace(/\.pdf$/i, '').trim();
+          if (nameMap.has(baseName)) {
+            const newName = `${baseName}-${nameMap.get(baseName)}.pdf`;
+            const content = await file.arrayBuffer();
+            zip.file(newName, content);
+            renamedCount++;
+          }
+        }
+
+        if (renamedCount === 0) {
+          status.textContent = "No matching PDF files found to rename.";
+          return;
+        }
+
+        const blob = await zip.generateAsync({ type: 'blob' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = 'RenamedPDFs.zip';
+        link.click();
+
+        status.textContent = `Successfully renamed ${renamedCount} files.`;
       };
-      reader.readAsArrayBuffer(file);
+
+      reader.readAsArrayBuffer(excelInput);
     }
   </script>
 </body>
