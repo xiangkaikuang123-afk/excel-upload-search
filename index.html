@@ -2,81 +2,119 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Rename PDFs by Excel</title>
+  <title>Rename PDFs from Excel</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.0/jszip.min.js"></script>
 </head>
 <body>
-  <h2>Upload Excel + PDF Files to Rename</h2>
+  <h2>Rename PDFs Sequentially Based on Excel</h2>
 
-  <p><strong>Step 1:</strong> Upload Excel File (first column = ID, second column = suffix)</p>
+  <p><strong>Step 1:</strong> Upload Excel File (Column A = number, Column B = suffix)</p>
   <input type="file" id="excelFile" accept=".xlsx, .xls" />
 
-  <p><strong>Step 2:</strong> Upload PDF files</p>
-  <input type="file" id="pdfFiles" accept=".pdf" multiple />
+  <p><strong>Step 2:</strong> Either:</p>
+  <ul>
+    <li>Select a folder with PDFs: <input type="file" id="pdfFolder" webkitdirectory directory multiple /></li>
+    <li><strong>OR</strong> upload a ZIP containing PDFs: <input type="file" id="pdfZip" accept=".zip" /></li>
+  </ul>
 
-  <br><br>
   <button onclick="processFiles()">Rename & Download</button>
 
   <p id="status" style="margin-top: 20px; color: green;"></p>
 
   <script>
     async function processFiles() {
-      const excelInput = document.getElementById('excelFile').files[0];
-      const pdfInput = document.getElementById('pdfFiles').files;
+      const excelFile = document.getElementById('excelFile').files[0];
+      const folderFiles = Array.from(document.getElementById('pdfFolder').files)
+        .filter(f => f.name.toLowerCase().endsWith('.pdf'))
+        .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+      const zipFile = document.getElementById('pdfZip').files[0];
 
-      if (!excelInput || pdfInput.length === 0) {
-        alert("Please upload both Excel file and at least one PDF.");
+      const status = document.getElementById('status');
+      status.textContent = "";
+
+      if (!excelFile) {
+        alert("Please upload an Excel file.");
         return;
       }
 
-      const status = document.getElementById('status');
-      status.textContent = "Processing...";
+      const renameList = await readExcelRenameList(excelFile);
+      if (renameList.length === 0) {
+        status.textContent = "❌ Excel has no valid rename entries.";
+        return;
+      }
 
-      const reader = new FileReader();
-      reader.onload = async function(e) {
-        const data = new Uint8Array(e.target.result);
-        const workbook = XLSX.read(data, { type: 'array' });
-        const sheet = workbook.Sheets[workbook.SheetNames[0]];
-        const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+      let pdfFiles = [];
 
-        const nameMap = new Map();
-        for (let i = 1; i < rows.length; i++) {
-          const id = rows[i][0];
-          const suffix = rows[i][1];
-          if (id && suffix) {
-            nameMap.set(id.toString().trim(), suffix.toString().trim());
+      if (folderFiles.length > 0) {
+        pdfFiles = folderFiles;
+      } else if (zipFile) {
+        status.textContent = "Unzipping files...";
+        pdfFiles = await extractPDFsFromZip(zipFile);
+      } else {
+        alert("Please select a PDF folder or upload a ZIP file.");
+        return;
+      }
+
+      if (renameList.length < pdfFiles.length) {
+        status.textContent = `❌ Error: Excel has ${renameList.length} entries but ${pdfFiles.length} PDFs were uploaded.`;
+        return;
+      }
+
+      const outputZip = new JSZip();
+      for (let i = 0; i < pdfFiles.length; i++) {
+        const newName = renameList[i];
+        const content = await pdfFiles[i].arrayBuffer();
+        outputZip.file(newName, content);
+      }
+
+      const blob = await outputZip.generateAsync({ type: 'blob' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = 'RenamedPDFs.zip';
+      link.click();
+
+      status.textContent = `✅ Renamed ${pdfFiles.length} PDF(s). ZIP downloaded.`;
+    }
+
+    async function readExcelRenameList(file) {
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = function (e) {
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const sheet = workbook.Sheets[workbook.SheetNames[0]];
+          const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+          const list = [];
+          for (let i = 1; i < rows.length; i++) {
+            const num = rows[i][0];
+            const suffix = rows[i][1];
+            if (num && suffix) {
+              const cleanNum = num.toString().trim().replace(/[-\s]+$/, '');
+              const cleanSuffix = suffix.toString().trim().replace(/^[-\s]+/, '');
+              list.push(`${cleanNum}-${cleanSuffix}.pdf`);
+            }
           }
-        }
+          resolve(list);
+        };
+        reader.readAsArrayBuffer(file);
+      });
+    }
 
-        const zip = new JSZip();
-        let renamedCount = 0;
+    async function extractPDFsFromZip(zipFile) {
+      const pdfList = [];
+      const zip = await JSZip.loadAsync(zipFile);
+      const pdfEntries = Object.values(zip.files)
+        .filter(f => f.name.toLowerCase().endsWith('.pdf') && !f.dir)
+        .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
 
-        for (let file of pdfInput) {
-          const baseName = file.name.replace(/\.pdf$/i, '').trim();
-          if (nameMap.has(baseName)) {
-            const newName = `${baseName}-${nameMap.get(baseName)}.pdf`;
-            const content = await file.arrayBuffer();
-            zip.file(newName, content);
-            renamedCount++;
-          }
-        }
-
-        if (renamedCount === 0) {
-          status.textContent = "No matching PDF files found to rename.";
-          return;
-        }
-
-        const blob = await zip.generateAsync({ type: 'blob' });
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.download = 'RenamedPDFs.zip';
-        link.click();
-
-        status.textContent = `Successfully renamed ${renamedCount} files.`;
-      };
-
-      reader.readAsArrayBuffer(excelInput);
+      for (let entry of pdfEntries) {
+        const blob = await entry.async('blob');
+        const fakeFile = new File([blob], entry.name, { type: 'application/pdf' });
+        pdfList.push(fakeFile);
+      }
+      return pdfList;
     }
   </script>
 </body>
