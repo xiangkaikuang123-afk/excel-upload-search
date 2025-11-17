@@ -3,358 +3,327 @@
 <head>
   <meta charset="UTF-8">
   <title>BOA - PDF Tools</title>
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.0/jszip.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
   <style>
-    body {
-      font-family: 'Segoe UI', sans-serif;
-      background: #f1f1f1;
-      margin: 0;
-      padding: 0;
-    }
-    header {
-      background: #e91e63;
-      color: white;
-      text-align: center;
-      padding: 30px 0;
-      font-size: 28px;
-      font-weight: bold;
-    }
-    nav {
-      display: flex;
-      justify-content: center;
-      gap: 20px;
-      margin-top: 20px;
-    }
-    nav button {
-      padding: 12px 25px;
-      border: none;
-      background: #e91e63;
-      color: white;
-      border-radius: 25px;
-      font-size: 16px;
-      cursor: pointer;
-    }
-    nav button.active {
-      background: #ad1457;
-    }
-    main {
-      max-width: 800px;
-      margin: 40px auto;
-      background: white;
-      border-radius: 8px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-      padding: 30px;
-    }
-    body { font-family: 'Segoe UI', sans-serif; background: #f1f1f1; margin: 0; padding: 0; }
-    header { background: #e91e63; color: white; text-align: center; padding: 30px 0; font-size: 28px; font-weight: bold; }
-    nav { display: flex; justify-content: center; gap: 20px; margin-top: 20px; flex-wrap: wrap; }
-    nav button { padding: 12px 25px; border: none; background: #e91e63; color: white; border-radius: 25px; font-size: 16px; cursor: pointer; }
-    nav button.active { background: #ad1457; }
-    main { max-width: 800px; margin: 40px auto; background: white; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); padding: 30px; }
-    section { display: none; }
-    section.active { display: block; }
-    h2 {
-      color: #e91e63;
-      margin-top: 0;
-    }
-    .dropzone {
-      border: 2px dashed #e91e63;
-      border-radius: 10px;
-      padding: 30px;
-      text-align: center;
-      color: #888;
-      margin: 20px 0;
-      cursor: pointer;
-    }
-    h2 { color: #e91e63; margin-top: 0; }
-    .dropzone { border: 2px dashed #e91e63; border-radius: 10px; padding: 30px; text-align: center; color: #888; margin: 20px 0; cursor: pointer; }
-    ul { padding-left: 20px; }
-    li { margin: 5px 0; }
-    .status {
-      margin-top: 10px;
-      color: green;
-    }
-    .file-preview {
-      margin-top: 10px;
-      padding: 10px;
-      border: 1px solid #ccc;
-      border-radius: 5px;
-      background: #f9f9f9;
-    }
-    .file-preview span {
-      display: inline-block;
-      margin-right: 10px;
-    }
-    .file-preview button {
-      background: #e53935;
-      color: white;
-      border: none;
-      border-radius: 3px;
-      padding: 3px 6px;
-      cursor: pointer;
-    }
-    .status { margin-top: 10px; color: green; }
-    .file-preview { margin-top: 10px; padding: 10px; border: 1px solid #ccc; border-radius: 5px; background: #f9f9f9; }
-    .file-preview span { display: inline-block; margin-right: 10px; }
-    .file-preview button { background: #e53935; color: white; border: none; border-radius: 3px; padding: 3px 6px; cursor: pointer; }
-    .link-container { margin: 20px 0; }
-    .link-container a { display: inline-block; padding: 10px 15px; background: #e91e63; color: white; border-radius: 5px; text-decoration: none; }
+    body { font-family:'Segoe UI',sans-serif; background:#f1f1f1; margin:0; padding:0; }
+    header { background:#e91e63; color:white; text-align:center; padding:30px 0; font-size:28px; font-weight:bold; }
+    nav { display:flex; justify-content:center; gap:20px; margin-top:20px; flex-wrap:wrap; }
+    nav button { padding:12px 25px; border:none; background:#e91e63; color:white; border-radius:25px;
+                 font-size:16px; cursor:pointer; }
+    nav button.active { background:#ad1457; }
+    main { max-width:800px; margin:40px auto; background:white; border-radius:8px;
+           box-shadow:0 4px 12px rgba(0,0,0,0.1); padding:30px; }
+    section { display:none; }
+    section.active { display:block; }
+    h2 { color:#e91e63; }
+    .dropzone { border:2px dashed #e91e63; border-radius:10px; padding:30px; text-align:center;
+                color:#888; margin:20px 0; cursor:pointer; }
+    .file-preview { margin-top:10px; padding:10px; border:1px solid #ccc; border-radius:5px;
+                    background:#f9f9f9; }
+    .file-preview button { background:#e53935; color:white; border:none; border-radius:3px;
+                           padding:3px 6px; cursor:pointer; }
+    .status { margin-top:10px; font-weight:bold; color:green; }
+    .link-container { margin:20px 0; }
+    .link-container a { padding:10px 15px; background:#e91e63; color:white; border-radius:5px;
+                        display:inline-block; text-decoration:none; }
   </style>
 </head>
+
 <body>
-  <header>
-     BOA - PDF Tools
-  </header>
-  <header> BOA - PDF Tools </header>
-  <nav>
-    <button onclick="showSection('merge')" class="active">Merge</button>
-    <button onclick="showSection('split')">Split</button>
-    <button onclick="showSection('rename')">Rename</button>
-    <button onclick="showSection('summary')">Summary</button>
-  </nav>
+<header>BOA - PDF Tools</header>
 
-  <main>
-    <!-- Merge -->
-    <section id="merge" class="active">
-      <h2>Merge PDF</h2>
-      <div class="dropzone" id="mergeDropzone" onclick="triggerMergeInput()">Click or Drop PDFs to Merge</div>
-@@ -108,6 +47,7 @@
-      <p class="status" id="mergeStatus"></p>
-    </section>
+<nav>
+  <button onclick="showSection('merge')" class="active">Merge</button>
+  <button onclick="showSection('split')">Split</button>
+  <button onclick="showSection('rename')">Rename</button>
+  <button onclick="showSection('summary')">Summary</button>
+</nav>
 
-    <!-- Split -->
-    <section id="split">
-      <h2>Split PDF</h2>
-      <div class="dropzone" id="splitDropzone" onclick="document.getElementById('splitInput').click()">Click or Drop PDF to Split</div>
-@@ -117,38 +57,51 @@
-      <p class="status" id="splitStatus"></p>
-    </section>
+<main>
 
-    <!-- Rename -->
-    <section id="rename">
-      <h2>Rename PDFs</h2>
-      <p>Upload Excel (1st column: number, 2nd: label)</p>
-      <input type="file" id="excelInput" accept=".xlsx,.xls" /><br><br>
-      <p>Upload zipped folder of PDFs</p>
-      <input type="file" id="pdfFolderZip" accept="application/zip" multiple /><br><br>
-      <input type="file" id="pdfFolderZip" accept="application/zip" /><br><br>
-      <button onclick="renameFromExcel()">Rename PDFs</button>
-      <p class="status" id="renameStatus"></p>
-    </section>
+<!-- MERGE -->
+<section id="merge" class="active">
+  <h2>Merge PDF</h2>
+  <div class="dropzone" id="mergeDropzone" onclick="triggerMergeInput()">Click or Drop PDFs to Merge</div>
+  <input type="file" id="mergeFileInput" style="display:none" accept="application/pdf" multiple>
+  <div id="mergePreview"></div>
+  <button onclick="mergePDFs()">Merge Now</button>
+  <p class="status" id="mergeStatus"></p>
+</section>
 
-    <!-- Summary -->
-    <section id="summary">
-      <h2>SUMMARY LISTING</h2>
-      <div class="link-container">
-        <a href="https://docs.google.com/spreadsheets/d/1aw9ZMyCajGGf1-Iq1dnf2J8t9SMJoA6f/edit?gid=1528348689#gid=1528348689" target="_blank">
-          Open SEMENYIH Google Sheet
-        </a>
-	<a href="https://docs.google.com/spreadsheets/d/198ZZZoJsOH8DrI7b5F-5hqvIIjP1jpModcEh-deo44o/edit?gid=1002820841#gid=1002820841" target="_blank">
-          Open N2 Google Sheet
-        </a>
-      </div>
-    </section>
-  </main>
+<!-- SPLIT -->
+<section id="split">
+  <h2>Split PDF</h2>
+  <div class="dropzone" id="splitDropzone" onclick="document.getElementById('splitInput').click()">Click or Drop PDF</div>
+  <input type="file" id="splitInput" style="display:none" accept="application/pdf">
+  <div id="splitPreview"></div>
+  <button onclick="splitPDF()">Split Now</button>
+  <p class="status" id="splitStatus"></p>
+</section>
 
-  <script>
-    // Navigation
-    const sections = document.querySelectorAll('section');
-    const buttons = document.querySelectorAll('nav button');
+<!-- RENAME -->
+<section id="rename">
+  <h2>Rename PDFs</h2>
 
-    function showSection(id) {
-      sections.forEach(s => s.classList.remove('active'));
-      document.getElementById(id).classList.add('active');
-      buttons.forEach(b => b.classList.remove('active'));
-      document.querySelector(`nav button[onclick*="${id}"]`).classList.add('active');
-      document.querySelector(`nav button[onclick="showSection('${id}')"]`).classList.add('active');
+  <p>Upload Excel (1st column = File No, 2nd = Name)</p>
+  <input type="file" id="excelInput" accept=".xlsx,.xls"><br><br>
+
+  <p>Upload ZIP containing PDFs</p>
+  <input type="file" id="pdfFolderZip" accept="application/zip"><br><br>
+
+  <button onclick="renameFromExcel()">Rename PDFs</button>
+
+  <p class="status" id="renameStatus"></p>
+</section>
+
+<!-- Summary -->
+<section id="summary">
+  <h2>SUMMARY LISTING</h2>
+  <div class="link-container">
+    <a href="https://docs.google.com/spreadsheets/d/1aw9ZMyCajGGf1-Iq1dnf2J8t9SMJoA6f" target="_blank">
+      SEMENYIH Google Sheet
+    </a>
+    <a href="https://docs.google.com/spreadsheets/d/198ZZZoJsOH8DrI7b5F-5hqvIIjP1jpModcEh-deo44o" target="_blank">
+      N2 Google Sheet
+    </a>
+  </div>
+</section>
+
+</main>
+
+<script>
+/* ---------------- NAVIGATION ---------------- */
+function showSection(id) {
+  document.querySelectorAll("section").forEach(s => s.classList.remove("active"));
+  document.getElementById(id).classList.add("active");
+
+  document.querySelectorAll("nav button").forEach(b => b.classList.remove("active"));
+  document.querySelector(`nav button[onclick="showSection('${id}')"]`).classList.add("active");
+}
+
+/* ---------------- MERGE ---------------- */
+let mergeFiles = [];
+
+function triggerMergeInput() {
+  document.getElementById('mergeFileInput').click();
+}
+
+document.getElementById('mergeFileInput').addEventListener('change', e => {
+  mergeFiles = [...mergeFiles, ...Array.from(e.target.files)];
+  renderMergePreview();
+});
+
+function renderMergePreview() {
+  const container = document.getElementById('mergePreview');
+  container.innerHTML = '';
+
+  mergeFiles.forEach((file, i) => {
+    const div = document.createElement('div');
+    div.className = 'file-preview';
+    div.innerHTML = `<span>${file.name}</span>
+                     <button onclick="removeMergeFile(${i})">X</button>`;
+    container.appendChild(div);
+  });
+}
+
+function removeMergeFile(index) {
+  mergeFiles.splice(index, 1);
+  renderMergePreview();
+}
+
+async function mergePDFs() {
+  const status = document.getElementById('mergeStatus');
+  status.textContent = "";
+
+  if (mergeFiles.length < 2) return alert("Add at least 2 PDFs");
+
+  const merged = await PDFLib.PDFDocument.create();
+
+  for (let file of mergeFiles) {
+    const bytes = await file.arrayBuffer();
+    const pdf = await PDFLib.PDFDocument.load(bytes);
+    const pages = await merged.copyPages(pdf, pdf.getPageIndices());
+    pages.forEach(p => merged.addPage(p));
+  }
+
+  const mergedBytes = await merged.save();
+  const blob = new Blob([mergedBytes], { type: "application/pdf" });
+
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = "Merged.pdf";
+  link.click();
+
+  status.textContent = "✔ Merged Successfully.";
+  mergeFiles = [];
+  renderMergePreview();
+}
+
+document.getElementById('mergeDropzone').addEventListener('dragover', e => {
+  e.preventDefault();
+  e.target.style.background = "#ffe6f0";
+});
+document.getElementById('mergeDropzone').addEventListener('dragleave', e => {
+  e.target.style.background = "";
+});
+document.getElementById('mergeDropzone').addEventListener('drop', e => {
+  e.preventDefault();
+  e.target.style.background = "";
+  mergeFiles = [...mergeFiles, ...Array.from(e.dataTransfer.files)];
+  renderMergePreview();
+});
+
+/* ---------------- SPLIT ---------------- */
+let splitFile = null;
+
+document.getElementById('splitInput').addEventListener('change', e => {
+  splitFile = e.target.files[0];
+  renderSplitPreview();
+});
+
+function renderSplitPreview() {
+  const container = document.getElementById('splitPreview');
+  container.innerHTML = '';
+
+  if (splitFile) {
+    container.innerHTML = `<div class="file-preview">
+                             <span>${splitFile.name}</span>
+                             <button onclick="removeSplitFile()">X</button>
+                           </div>`;
+  }
+}
+
+function removeSplitFile() {
+  splitFile = null;
+  document.getElementById('splitInput').value = "";
+  renderSplitPreview();
+}
+
+document.getElementById('splitDropzone').addEventListener('dragover', e => {
+  e.preventDefault();
+  e.target.style.background = "#ffe6f0";
+});
+document.getElementById('splitDropzone').addEventListener('dragleave', e => {
+  e.target.style.background = "";
+});
+document.getElementById('splitDropzone').addEventListener('drop', e => {
+  e.preventDefault();
+  e.target.style.background = "";
+  const files = Array.from(e.dataTransfer.files).filter(f => f.type === "application/pdf");
+  if (files.length > 0) {
+    splitFile = files[0];
+    renderSplitPreview();
+  }
+});
+
+async function splitPDF() {
+  const status = document.getElementById('splitStatus');
+  status.textContent = "";
+
+  if (!splitFile) return alert("Select a PDF first");
+
+  const zip = new JSZip();
+  const bytes = await splitFile.arrayBuffer();
+  const pdf = await PDFLib.PDFDocument.load(bytes);
+
+  for (let i = 0; i < pdf.getPageCount(); i++) {
+    const newPdf = await PDFLib.PDFDocument.create();
+    const [page] = await newPdf.copyPages(pdf, [i]);
+    newPdf.addPage(page);
+    const pageBytes = await newPdf.save();
+    zip.file(`Page-${i + 1}.pdf`, pageBytes);
+  }
+
+  const zipBlob = await zip.generateAsync({ type: "blob" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(zipBlob);
+  link.download = "SplitPages.zip";
+  link.click();
+
+  status.textContent = "✔ PDF split completed.";
+  removeSplitFile();
+}
+
+/* ---------------- RENAME (FIXED) ---------------- */
+async function renameFromExcel() {
+  const excelFile = document.getElementById('excelInput').files[0];
+  const zipFile = document.getElementById('pdfFolderZip').files[0];
+  const status = document.getElementById('renameStatus');
+
+  status.textContent = "";
+
+  if (!excelFile || !zipFile) {
+    alert("Upload Excel and ZIP");
+    return;
+  }
+
+  const excelMap = await readExcelToMap(excelFile);
+  const zipData = await JSZip.loadAsync(zipFile);
+
+  const pdfFiles = Object.keys(zipData.files).filter(n => n.endsWith(".pdf"));
+
+  const outZip = new JSZip();
+  let renamedCount = 0;
+  let missingList = [];
+
+  for (const pdfName of pdfFiles) {
+    const fileNumber = pdfName.replace(/\D/g, ""); // extract digits only
+
+    if (excelMap[fileNumber]) {
+      const newName = `${fileNumber}-${excelMap[fileNumber]}.pdf`;
+      const content = await zipData.files[pdfName].async("uint8array");
+      outZip.file(newName, content);
+      renamedCount++;
+    } else {
+      missingList.push(pdfName);
     }
+  }
 
-    // MERGE
-    let mergeFiles = [];
+  const finalZip = await outZip.generateAsync({ type: "blob" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(finalZip);
+  link.download = "RenamedPDFs.zip";
+  link.click();
 
-    function triggerMergeInput() {
-      document.getElementById('mergeFileInput').click();
-    }
+  status.textContent =
+    `✔ Renamed ${renamedCount} PDFs. Missing: ${missingList.length}`;
+}
 
-    document.getElementById('mergeFileInput').addEventListener('change', (e) => {
-      mergeFiles = [...mergeFiles, ...Array.from(e.target.files)];
-      renderMergePreview();
-    });
+async function readExcelToMap(file) {
+  return new Promise(resolve => {
+    const reader = new FileReader();
 
-    function renderMergePreview() {
-      const container = document.getElementById('mergePreview');
-      container.innerHTML = '';
-@@ -158,17 +111,14 @@
-        container.appendChild(div);
-      });
-    }
+    reader.onload = e => {
+      const data = new Uint8Array(e.target.result);
+      const workbook = XLSX.read(data, { type: "array" });
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
 
-    function removeMergeFile(index) {
-      mergeFiles.splice(index, 1);
-      renderMergePreview();
-    }
+      let map = {};
 
-    async function mergePDFs() {
-      const status = document.getElementById('mergeStatus');
-      status.textContent = '';
-      if (mergeFiles.length < 2) return alert("Add at least 2 PDFs");
+      for (let i = 1; i < rows.length; i++) {
+        let number = rows[i][0];
+        let name = rows[i][1];
 
-      const merged = await PDFLib.PDFDocument.create();
-      for (let file of mergeFiles) {
-        const bytes = await file.arrayBuffer();
-@@ -186,47 +136,27 @@
-      mergeFiles = [];
-      renderMergePreview();
-    }
+        if (!number || !name) continue;
 
-    const mergeDropzone = document.getElementById('mergeDropzone');
-    mergeDropzone.addEventListener('dragover', function (e) {
-      e.preventDefault();
-      mergeDropzone.style.background = '#ffe6f0';
-    });
-    mergeDropzone.addEventListener('dragleave', function () {
-      mergeDropzone.style.background = '';
-    });
-    mergeDropzone.addEventListener('drop', function (e) {
-      e.preventDefault();
-      mergeDropzone.style.background = '';
-    mergeDropzone.addEventListener('dragover', e => { e.preventDefault(); mergeDropzone.style.background = '#ffe6f0'; });
-    mergeDropzone.addEventListener('dragleave', () => mergeDropzone.style.background = '');
-    mergeDropzone.addEventListener('drop', e => {
-      e.preventDefault(); mergeDropzone.style.background = '';
-      const files = Array.from(e.dataTransfer.files).filter(f => f.type === 'application/pdf');
-      mergeFiles = [...mergeFiles, ...files];
-      renderMergePreview();
-    });
+        number = number.toString().trim();
+        name = name.toString().replace(/^-+/, "").trim();
 
-    // SPLIT
-    let splitFile = null;
-    document.getElementById('splitInput').addEventListener('change', (e) => {
-      splitFile = e.target.files[0];
-      renderSplitPreview();
-    });
-
-    document.getElementById('splitInput').addEventListener('change', (e) => { splitFile = e.target.files[0]; renderSplitPreview(); });
-    const splitDropzone = document.getElementById('splitDropzone');
-    splitDropzone.addEventListener('dragover', function (e) {
-      e.preventDefault();
-      splitDropzone.style.background = '#ffe6f0';
-    });
-    splitDropzone.addEventListener('dragleave', function () {
-      splitDropzone.style.background = '';
-    });
-    splitDropzone.addEventListener('drop', function (e) {
-      e.preventDefault();
-      splitDropzone.style.background = '';
-    splitDropzone.addEventListener('dragover', e => { e.preventDefault(); splitDropzone.style.background = '#ffe6f0'; });
-    splitDropzone.addEventListener('dragleave', () => splitDropzone.style.background = '');
-    splitDropzone.addEventListener('drop', e => {
-      e.preventDefault(); splitDropzone.style.background = '';
-      const files = Array.from(e.dataTransfer.files).filter(f => f.type === 'application/pdf');
-      if (files.length > 0) {
-        splitFile = files[0];
-        renderSplitPreview();
+        map[number] = name;
       }
-      if (files.length > 0) { splitFile = files[0]; renderSplitPreview(); }
-    });
 
-    function renderSplitPreview() {
-      const container = document.getElementById('splitPreview');
-      container.innerHTML = '';
-@@ -236,30 +166,21 @@
-        container.appendChild(div);
-      }
-    }
+      resolve(map);
+    };
 
-    function removeSplitFile() {
-      splitFile = null;
-      document.getElementById('splitInput').value = '';
-      renderSplitPreview();
-    }
+    reader.readAsArrayBuffer(file);
+  });
+}
+</script>
 
-    function removeSplitFile() { splitFile = null; document.getElementById('splitInput').value = ''; renderSplitPreview(); }
-    async function splitPDF() {
-      const status = document.getElementById('splitStatus');
-      status.textContent = '';
-      if (!splitFile) return alert("Please select a PDF");
-
-      const zip = new JSZip();
-      const bytes = await splitFile.arrayBuffer();
-      const pdf = await PDFLib.PDFDocument.load(bytes);
-
-      for (let i = 0; i < pdf.getPageCount(); i++) {
-        const newPdf = await PDFLib.PDFDocument.create();
-        const [page] = await newPdf.copyPages(pdf, [i]);
-        newPdf.addPage(page);
-        const pageBytes = await newPdf.save();
-        zip.file(`Page-${i + 1}.pdf`, pageBytes);
-      }
-
-      const zipBlob = await zip.generateAsync({ type: 'blob' });
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(zipBlob);
-@@ -269,61 +190,55 @@
-      removeSplitFile();
-    }
-
-    // RENAME
-    async function renameFromExcel() {
-      const excelFile = document.getElementById('excelInput').files[0];
-      const zipFile = document.getElementById('pdfFolderZip').files[0];
-      const status = document.getElementById('renameStatus');
-      status.textContent = '';
-
-      if (!excelFile || !zipFile) return alert("Upload Excel and PDF zip");
-
-      const renameList = await readExcel(excelFile);
-
-      const zipData = await JSZip.loadAsync(zipFile);
-      const pdfFiles = Object.keys(zipData.files).filter(name => name.endsWith('.pdf'));
-
-      if (pdfFiles.length !== renameList.length) {
-        status.textContent = `❌ Mismatch: ${pdfFiles.length} PDFs vs ${renameList.length} Excel rows.`;
-        return;
-      }
-
-      const outZip = new JSZip();
-      for (let i = 0; i < pdfFiles.length; i++) {
-        const blob = await zipData.files[pdfFiles[i]].async("uint8array");
-        outZip.file(renameList[i], blob);
-      }
-
-      const finalZip = await outZip.generateAsync({ type: 'blob' });
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(finalZip);
-      link.download = 'RenamedPDFs.zip';
-      link.click();
-      status.textContent = `✅ Renamed and zipped ${renameList.length} PDFs.`;
-    }
-
-    async function readExcel(file) {
-      return new Promise(resolve => {
-        const reader = new FileReader();
-        reader.onload = function (e) {
-          const data = new Uint8Array(e.target.result);
-          const workbook = XLSX.read(data, { type: 'array' });
-          const sheet = workbook.Sheets[workbook.SheetNames[0]];
-          const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
-          const list = [];
-          for (let i = 1; i < rows.length; i++) {
-            const num = rows[i][0];
-            const suffix = rows[i][1];
-            if (num && suffix) {
-              const cleanNum = num.toString().trim().replace(/[-\s]+$/, '');
-              const cleanSuffix = suffix.toString().trim().replace(/^[-\s]+/, '');
-              list.push(`${cleanNum}-${cleanSuffix}.pdf`);
-            }
-          }
-          resolve(list);
-        };
-        reader.readAsArrayBuffer(file);
-      });
-    }
-  </script>
 </body>
 </html>
