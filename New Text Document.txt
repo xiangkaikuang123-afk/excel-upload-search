@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>BOA - PDF Tools</title>
+
+  <!-- Libraries -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.0/jszip.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+  <style>
+    body { font-family: 'Segoe UI', sans-serif; background: #f1f1f1; margin: 0; padding: 0; }
+    header { background: #e91e63; color: white; text-align: center; padding: 30px 0; font-size: 28px; font-weight: bold; }
+    nav { display: flex; justify-content: center; gap: 20px; margin-top: 20px; flex-wrap: wrap; }
+    nav button { padding: 12px 25px; border: none; background: #e91e63; color: white; border-radius: 25px; font-size: 16px; cursor: pointer; }
+    nav button.active { background: #ad1457; }
+    main { max-width: 800px; margin: 40px auto; background: white; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); padding: 30px; }
+    section { display: none; }
+    section.active { display: block; }
+    h2 { color: #e91e63; margin-top: 0; }
+    .dropzone { border: 2px dashed #e91e63; border-radius: 10px; padding: 30px; text-align: center; color: #888; margin: 20px 0; cursor: pointer; }
+    .file-preview { margin-top: 10px; padding: 10px; border: 1px solid #ccc; border-radius: 5px; background: #f9f9f9; }
+    .status { margin-top: 10px; color: green; }
+  </style>
+</head>
+
+<body>
+
+<header> BOA - PDF Tools </header>
+
+<nav>
+  <button onclick="showSection('merge')" class="active">Merge</button>
+  <button onclick="showSection('split')">Split</button>
+  <button onclick="showSection('rename')">Rename</button>
+  <button onclick="showSection('summary')">Summary</button>
+  <button onclick="showSection('generator')">Generator</button>
+</nav>
+
+<main>
+
+  <!-- Merge -->
+  <section id="merge" class="active">
+    <h2>Merge PDF</h2>
+    <div class="dropzone" onclick="document.getElementById('mergeFileInput').click()">Click or Drop PDFs</div>
+    <input type="file" id="mergeFileInput" multiple accept="application/pdf" style="display:none">
+    <p class="status" id="mergeStatus"></p>
+  </section>
+
+  <!-- Split -->
+  <section id="split">
+    <h2>Split PDF</h2>
+    <div class="dropzone" onclick="document.getElementById('splitInput').click()">Click or Drop PDF</div>
+    <input type="file" id="splitInput" accept="application/pdf" style="display:none">
+    <button onclick="splitPDF()">Split PDF</button>
+    <p class="status" id="splitStatus"></p>
+  </section>
+
+  <!-- Rename -->
+  <section id="rename">
+    <h2>Rename PDFs</h2>
+    <p>Upload Excel (Col A: Number, Col B: Label)</p>
+    <input type="file" id="excelInput" accept=".xlsx,.xls"><br><br>
+
+    <p>Upload ZIP containing PDFs</p>
+    <input type="file" id="pdfFolderZip" accept="application/zip"><br><br>
+
+    <button onclick="renameFromExcel()">Rename PDFs</button>
+    <p class="status" id="renameStatus"></p>
+  </section>
+
+  <!-- Summary -->
+  <section id="summary">
+    <h2>SUMMARY LISTING</h2>
+    <a href="https://docs.google.com/spreadsheets/d/1aw9ZMyCajGGf1-Iq1dnf2J8t9SMJoA6f/edit?gid=1528348689#gid=1528348689" target="_blank">SEMENTYIH Sheet</a><br>
+    <a href="https://docs.google.com/spreadsheets/d/198ZZZoJsOH8DrI7b5F-5hqvIIjP1jpModcEh-deo44o/edit?gid=1002820841#gid=1002820841" target="_blank">N2 Sheet</a>
+  </section>
+
+  <!-- Generator -->
+  <section id="generator">
+    <h2>Random Generator</h2>
+    <div>Target: <span id="targetValue">-</span></div>
+    <div>Range: <span id="rangeValue">-</span></div>
+    <div>Round: <span id="roundValue">-</span></div>
+    <button onclick="generateNumbers()">Generate</button>
+  </section>
+
+</main>
+
+<script>
+
+////////////////////////////////////////////////////////////////////////////////
+// NAVIGATION
+////////////////////////////////////////////////////////////////////////////////
+
+const sections = document.querySelectorAll('section');
+const buttons = document.querySelectorAll('nav button');
+
+function showSection(id) {
+  sections.forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+
+  buttons.forEach(b => b.classList.remove('active'));
+  document.querySelector(`nav button[onclick="showSection('${id}')"]`).classList.add('active');
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// GENERATOR
+////////////////////////////////////////////////////////////////////////////////
+
+function generateNumbers() {
+  document.getElementById("targetValue").textContent = Math.floor(Math.random() * 100) + 1;
+  document.getElementById("rangeValue").textContent = Math.floor(Math.random() * 10) + 1;
+  document.getElementById("roundValue").textContent = Math.floor(Math.random() * 4) + 2;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// RENAME FUNCTION (FULL WORKING VERSION)
+////////////////////////////////////////////////////////////////////////////////
+
+async function renameFromExcel() {
+  const status = document.getElementById("renameStatus");
+  status.textContent = "";
+
+  const excelFile = document.getElementById("excelInput").files[0];
+  const zipFile = document.getElementById("pdfFolderZip").files[0];
+
+  if (!excelFile || !zipFile) {
+    status.textContent = "Please upload both Excel and ZIP.";
+    return;
+  }
+
+  try {
+    // Read Excel
+    const excelData = await excelFile.arrayBuffer();
+    const workbook = XLSX.read(excelData, { type: "array" });
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+    // Mapping: number -> label
+    const mapping = {};
+    rows.forEach(row => {
+      if (row[0] && row[1]) {
+        mapping[row[0].toString().trim()] = row[1].toString().trim();
+      }
+    });
+
+    // Read ZIP
+    const jszip = new JSZip();
+    const zipContent = await jszip.loadAsync(zipFile);
+    const newZip = new JSZip();
+
+    // Process each PDF
+    for (const filename of Object.keys(zipContent.files)) {
+      const file = zipContent.files[filename];
+
+      if (!filename.toLowerCase().endsWith(".pdf")) continue;
+
+      const cleanNumber = filename.replace(".pdf","").trim();
+
+      const label = mapping[cleanNumber];
+
+      const pdfData = await file.async("arraybuffer");
+
+      if (label) {
+        // Build output: number + label
+        const newName = `${cleanNumber}${label}.pdf`;
+        newZip.file(newName, pdfData);
+      } else {
+        newZip.file(filename, pdfData);
+      }
+    }
+
+    // Download ZIP
+    const output = await newZip.generateAsync({ type: "blob" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(output);
+    link.download = "Renamed_PDFs.zip";
+    link.click();
+
+    status.textContent = "Renaming completed — ZIP downloaded.";
+  } catch (err) {
+    console.error(err);
+    status.textContent = "Error occurred during rename.";
+  }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+</script>
+
+</body>
+</html>
